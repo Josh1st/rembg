@@ -1,12 +1,12 @@
 import io
 import base64
-import requests
 import PIL
 from PIL import Image
 from rembg import remove
 import functions_framework
 import logging
-import sys 
+import sys
+import os
 
 DEBUG = False
 for arg in sys.argv:
@@ -57,28 +57,21 @@ def rembg(request):
         200:
             all valid images procesed. if an indiviudal image fails it will not
             effect the other images.
+        500:
+            failed to read the size of all the uploaded files
         423:
             total upload size too big
             upload less images or smaller images
     """
 
-    # Set CORS headers for the main request
-    # if DEBUG:
-    #     headers = {
-    #         'Access-Control-Allow-Origin': '*'
-    #     }
-    # else:
-    #     headers = {
-    #         # 'Access-Control-Allow-Origin': 'https://big-byte-solutions.co.za'
-    #         'Access-Control-Allow-Origin': '*'
-    #     }
 
+    # Set the cors headers to the ALLOWED_ORIGIN env variable or to "*"
     # Set CORS headers for the preflight request
     if request.method == 'OPTIONS':
         # Allows GET requests from any origin with the Content-Type
         # header and caches preflight response for an 3600s
         headers = {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': os.environ.get('ALLOWED_ORIGIN', '*'),
             'Access-Control-Allow-Methods': 'GET',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '3600'
@@ -88,13 +81,12 @@ def rembg(request):
 
     # Set CORS headers for the main request
     headers = {
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': os.environ.get('ALLOWED_ORIGIN', '*')
     }
 
-    images = []
-    messages = []
+    
+    # check to see that all uploaded files combined are smaller than 30mb
     size = 0
-
     try:
         for file in request.files.getlist('files[]'):
             
@@ -102,7 +94,7 @@ def rembg(request):
             size = size + len(blob)
     except Exception as e:
         logging.error(e)
-        client.report_exception()
+        return ("Failed to read files", 500, headers)
 
     size = size / 1000000
     logging.info(f"size: {size}")
@@ -110,20 +102,14 @@ def rembg(request):
     if size > 30:
         return ("Upload size too large", 418, headers)
 
-    logging.info(request.files.getlist('files[]'))
-    print(request.files.getlist('files[]'))
+    
+    images = []
 
-    messages.append({'files': str(request.files.getlist('files[]'))})
-
+    # loop through each uploaded file
     for file in request.files.getlist('files[]'):
 
-        logging.info(file)
-        print(file)
-        messages.append(str(file))
-
+        # check to see if the file is an image
         if not is_image_file(file):
-            logging.warning(file.filename + " is not a valid image")
-            print(file.filename + " is not a valid image")
             images.append({
                     'name': file.filename,
                     'image': None,
@@ -134,40 +120,30 @@ def rembg(request):
         # convert file to pillow object
         img = Image.open(file.stream)
         try:
+            # run rembg on the pillow object and get a pillow object back
             result = remove(img, alpha_matting=True)
 
             # convert pillow object to base64 string
             with io.BytesIO() as f:
                 result.save(f, format='PNG')
                 f.seek(0)
+                # append the base64 string to the images array plus the
+                # file name and a success message
                 images.append({
                         'name': file.filename,
                         'image': base64.b64encode(f.read()).decode('utf-8'),
                         'message': 'Procesed successfully',
                     })
-            messages.append('image procesed')
                 
         except Exception as e:
-            messages.append('image failed')
-            messages.append(str(e))
             logging.error(e)
-            print(e)
+            # add an error message to the image object if
+            # something goes wrong
             images.append({
                     'name': file.filename,
                     'image': None,
-                    'message': str(e),
+                    'message': 'Failed to process image',
                 })
-            if not DEBUG:
-                from google.cloud import error_reporting
-                client = error_reporting.Client()
-                client.report_exception()
 
     logging.info(str(len(images)) + ' images proccesed')
-    print(str(len(images)) + ' images proccesed')
-    return ({'images': images, 'messages': messages}, 200, headers)
-
-
-# gcloud functions deploy rembg --env-vars-file .env.yaml --runtime python310 --trigger-http --allow-unauthenticated --entry-point=rembg --memory=4096MB
-# gcloud functions deploy rembg --env-vars-file .env.yaml --runtime python310 --trigger-http --allow-unauthenticated --entry-point=rembg --memory=4096MB --allow-unauthenticated
-# gcloud functions deploy rembg --env-vars-file .env.yaml --runtime python310 --trigger-http --allow-unauthenticated --entry-point=rembg --memory="4 GiB" --allow-unauthenticated --gen2
-# gcloud functions deploy rembg --env-vars-file .env.yaml --runtime python310 --trigger-http --allow-unauthenticated --entry-point=rembg --memory=4096MB
+    return ({'images': images}, 200, headers)

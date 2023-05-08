@@ -3,6 +3,7 @@ cd /home/josh/rembg
 source env/bin/activate
 export U2NET_HOME="./.u2net"
 export FLASK_APP=rembg
+export ALLOWED_ORIGIN="https://big-byte-solutions.co.za"
 
 pip install -r requirements.txt
 

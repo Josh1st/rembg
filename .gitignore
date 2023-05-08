@@ -1,6 +1,7 @@
 /node_modules/
 /env/
 /.u2net/
+/run.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

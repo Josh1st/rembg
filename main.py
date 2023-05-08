@@ -6,7 +6,7 @@ from PIL import Image
 from rembg import remove
 import functions_framework
 import logging
-import sys
+import sys 
 
 DEBUG = False
 for arg in sys.argv:

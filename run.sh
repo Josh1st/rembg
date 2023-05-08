@@ -1,6 +1,6 @@
 source env/bin/activate
 export U2NET_HOME="./.u2net"
-export FLASK_APP=rembg
+export FLASK_APP=rembg 
 
 pip install -r requirements.txt
 

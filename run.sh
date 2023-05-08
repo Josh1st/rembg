@@ -7,4 +7,4 @@ export FLASK_APP=rembg
 pip install -r requirements.txt
 
 # functions-framework --target rembg --debug --port=8080
-python env/Lib/site-packages/functions_framework/__main__.py --target rembg --debug --port=8080
+python env/lib/python3.10/site-packages/functions_framework/__main__.py --target rembg --debug --port=8080

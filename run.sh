@@ -7,4 +7,4 @@ export ALLOWED_ORIGIN="https://big-byte-solutions.co.za"
 
 pip install -r requirements.txt
 
-python env/lib/python3.10/site-packages/functions_framework/__main__.py --target rembg --port=8080
+python env/lib/python3.10/site-packages/functions_framework/__main__.py --target rembg --port=9090
